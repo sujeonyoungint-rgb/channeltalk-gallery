@@ -7,6 +7,10 @@ import Modal from './Modal'
 
 function SyncButton() {
   const [syncInfo, setSyncInfo] = useState<{status: string, step?: string} | null>(null)
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const API_URL = process.env.NEXT_PUBLIC_SYNC_API_URL || 'http://localhost:8000'
 
   const STEP_LABEL: Record<string, string> = {
     syncing: '📥 DB 저장 중...',
@@ -15,20 +19,45 @@ function SyncButton() {
     done: '✅ 완료',
   }
 
+  // 마지막 성공 동기화 시각 조회
+  async function loadLastSync() {
+    const { data } = await supabase
+      .from('sync_log')
+      .select('finished_at')
+      .eq('status', 'success')
+      .eq('step', 'done')
+      .not('finished_at', 'is', null)
+      .order('finished_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    if (data?.finished_at) {
+      setLastSyncedAt(data.finished_at)
+    }
+  }
+
+  // FastAPI 상태 조회
   async function checkStatus() {
-    const res = await fetch('http://localhost:8000/sync/status')
-    const data = await res.json()
-    setSyncInfo(data)
-    return data
+    try {
+      const res = await fetch(`${API_URL}/sync/status`)
+      const data = await res.json()
+      setSyncInfo(data)
+      return data
+    } catch (e) {
+      setSyncInfo({ status: 'idle' })
+      return { status: 'idle' }
+    }
   }
 
   useEffect(() => {
+    loadLastSync()
     checkStatus().then((data) => {
       if (data.status === 'running') {
         const interval = setInterval(async () => {
           const d = await checkStatus()
           if (d.status !== 'running') {
             clearInterval(interval)
+            await loadLastSync()
             setTimeout(() => setSyncInfo({ status: 'idle' }), 2000)
           }
         }, 2000)
@@ -36,38 +65,89 @@ function SyncButton() {
     })
   }, [])
 
-  async function handleSync() {
-    if (syncInfo?.status === 'running') return
-    await fetch('http://localhost:8000/sync/full', { method: 'POST' })
-    setSyncInfo({ status: 'running', step: 'syncing' })
-
-    const interval = setInterval(async () => {
-      const d = await checkStatus()
-      if (d.status !== 'running') {
-        clearInterval(interval)
-        setTimeout(() => setSyncInfo({ status: 'idle' }), 2000)
-      }
-    }, 2000)
+  // 상대 시각 포맷
+  function formatRelative(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 1000 / 60)
+    if (mins < 1) return '방금 전'
+    if (mins < 60) return `${mins}분 전`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}시간 전`
+    return `${Math.floor(hours / 24)}일 전`
   }
 
+  // Rate limit 계산
+  const minsSinceLastSync = lastSyncedAt
+    ? Math.floor((Date.now() - new Date(lastSyncedAt).getTime()) / 1000 / 60)
+    : Infinity
+  const isRateLimited = minsSinceLastSync < 60
+  const remainingMins = Math.max(0, 60 - minsSinceLastSync)
+
   const isRunning = syncInfo?.status === 'running'
+  const canSync = !isRunning && !isRateLimited
+
+  async function handleSync() {
+    if (!canSync) return
+    setError(null)
+    
+    try {
+      const res = await fetch(`${API_URL}/sync/full`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.detail || `동기화 실패 (${res.status})`)
+      }
+      setSyncInfo({ status: 'running', step: 'syncing' })
+
+      const interval = setInterval(async () => {
+        const d = await checkStatus()
+        if (d.status !== 'running') {
+          clearInterval(interval)
+          await loadLastSync()
+          setTimeout(() => setSyncInfo({ status: 'idle' }), 2000)
+        }
+      }, 2000)
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  // 버튼 라벨
   const label = isRunning && syncInfo?.step
     ? STEP_LABEL[syncInfo.step] ?? '⏳ 동기화 중...'
-    : syncInfo?.status === 'success' ? '✅ 완료'
     : '🔄 동기화'
 
   return (
-    <button
-      onClick={handleSync}
-      disabled={isRunning}
-      className={`text-sm px-3 py-1.5 rounded transition flex items-center gap-1.5 ${
-        isRunning ? 'bg-gray-600 text-gray-300 cursor-not-allowed' :
-        syncInfo?.status === 'success' ? 'bg-green-600 text-white' :
-        'bg-gray-600 hover:bg-gray-500 text-white'
-      }`}
-    >
-      {label}
-    </button>
+    <div className="flex items-center gap-3">
+      {lastSyncedAt && !isRunning && (
+        <span className="text-xs text-gray-300">
+          마지막: {formatRelative(lastSyncedAt)}
+          {isRateLimited && (
+            <span className="text-gray-400 ml-1.5">({remainingMins}분 후 가능)</span>
+          )}
+        </span>
+      )}
+      
+      <button
+        onClick={handleSync}
+        disabled={!canSync}
+        title={
+          isRunning ? '동기화 진행 중' :
+          isRateLimited ? `${remainingMins}분 후 다시 시도 가능 (1시간 제한)` :
+          '데이터 동기화'
+        }
+        className={`text-sm px-3 py-1.5 rounded transition flex items-center gap-1.5 ${
+          isRunning ? 'bg-gray-600 text-gray-300 cursor-not-allowed' :
+          isRateLimited ? 'bg-gray-500 text-gray-400 cursor-not-allowed' :
+          'bg-gray-600 hover:bg-gray-500 text-white'
+        }`}
+      >
+        {label}
+      </button>
+      
+      {error && (
+        <span className="text-xs text-red-400">⚠️ {error}</span>
+      )}
+    </div>
   )
 }
 
