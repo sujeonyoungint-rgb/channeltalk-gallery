@@ -1,9 +1,27 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import ImageCard from './ImageCard'
 import Modal from './Modal'
+
+const supabase = createClient()
+
+function LogoutButton() {
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+  return (
+    <button
+      onClick={handleLogout}
+      className="text-sm text-gray-300 hover:text-white transition px-3 py-1.5 border border-gray-600 rounded hover:bg-gray-700"
+    >
+      로그아웃
+    </button>
+  )
+}
 
 function SyncButton() {
   const [syncInfo, setSyncInfo] = useState<{status: string, step?: string} | null>(null)
@@ -231,13 +249,17 @@ export default function Gallery() {
   }
 
   return (
+    
     <div className="flex flex-col h-screen bg-gray-50">
       {/* 헤더 */}
       {/* 타이틀 */}
-        <div className="bg-gray-800 px-6 py-3 flex justify-between items-center">
-          <h1 className="text-lg font-bold text-white tracking-tight">📷 불량 사진 갤러리</h1>
-          <SyncButton />
-        </div>
+        <div className="bg-gray-800 px-6 py-3 flex justify-between items-center flex-wrap gap-2">
+  <h1 className="text-white font-semibold">📷 불량 사진 갤러리</h1>
+  <div className="flex items-center gap-3">
+    <SyncButton />
+    <LogoutButton />
+  </div>
+</div>
 
        {/* 검색 + 필터 한 줄 */}
         <div className="px-6 py-3 bg-gray-50 flex flex-wrap gap-2 items-center">
