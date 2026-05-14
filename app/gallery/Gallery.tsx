@@ -7,6 +7,9 @@ import Modal from './Modal'
 
 const supabase = createClient()
 
+// ============================================================
+// 로그아웃 버튼
+// ============================================================
 function LogoutButton() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -23,8 +26,11 @@ function LogoutButton() {
   )
 }
 
+// ============================================================
+// 동기화 버튼 (기존 그대로)
+// ============================================================
 function SyncButton() {
-  const [syncInfo, setSyncInfo] = useState<{status: string, step?: string} | null>(null)
+  const [syncInfo, setSyncInfo] = useState<{ status: string; step?: string } | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,7 +43,6 @@ function SyncButton() {
     done: '✅ 완료',
   }
 
-  // 마지막 성공 동기화 시각 조회
   async function loadLastSync() {
     const { data } = await supabase
       .from('sync_log')
@@ -48,20 +53,19 @@ function SyncButton() {
       .order('finished_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    
+
     if (data?.finished_at) {
       setLastSyncedAt(data.finished_at)
     }
   }
 
-  // FastAPI 상태 조회
   async function checkStatus() {
     try {
       const res = await fetch(`${API_URL}/sync/status`)
       const data = await res.json()
       setSyncInfo(data)
       return data
-    } catch (e) {
+    } catch {
       setSyncInfo({ status: 'idle' })
       return { status: 'idle' }
     }
@@ -83,7 +87,6 @@ function SyncButton() {
     })
   }, [])
 
-  // 상대 시각 포맷
   function formatRelative(iso: string) {
     const diff = Date.now() - new Date(iso).getTime()
     const mins = Math.floor(diff / 1000 / 60)
@@ -94,7 +97,6 @@ function SyncButton() {
     return `${Math.floor(hours / 24)}일 전`
   }
 
-  // Rate limit 계산
   const minsSinceLastSync = lastSyncedAt
     ? Math.floor((Date.now() - new Date(lastSyncedAt).getTime()) / 1000 / 60)
     : Infinity
@@ -107,7 +109,7 @@ function SyncButton() {
   async function handleSync() {
     if (!canSync) return
     setError(null)
-    
+
     try {
       const res = await fetch(`${API_URL}/sync/full`, { method: 'POST' })
       if (!res.ok) {
@@ -129,60 +131,156 @@ function SyncButton() {
     }
   }
 
-  // 버튼 라벨
-  const label = isRunning && syncInfo?.step
-    ? STEP_LABEL[syncInfo.step] ?? '⏳ 동기화 중...'
-    : '🔄 동기화'
+  const label =
+    isRunning && syncInfo?.step
+      ? STEP_LABEL[syncInfo.step] ?? '⏳ 동기화 중...'
+      : '🔄 동기화'
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 flex-wrap">
       {lastSyncedAt && !isRunning && (
         <span className="text-xs text-gray-300">
           마지막: {formatRelative(lastSyncedAt)}
           {isRateLimited && (
-            <span className="text-gray-400 ml-1.5">({remainingMins}분 후 가능)</span>
+            <span className="text-gray-400 ml-1.5">({remainingMins}분 후)</span>
           )}
         </span>
       )}
-      
+
       <button
         onClick={handleSync}
         disabled={!canSync}
         title={
-          isRunning ? '동기화 진행 중' :
-          isRateLimited ? `${remainingMins}분 후 다시 시도 가능 (1시간 제한)` :
-          '데이터 동기화'
+          isRunning
+            ? '동기화 진행 중'
+            : isRateLimited
+            ? `${remainingMins}분 후 다시 시도 가능 (1시간 제한)`
+            : '데이터 동기화'
         }
         className={`text-sm px-3 py-1.5 rounded transition flex items-center gap-1.5 ${
-          isRunning ? 'bg-gray-600 text-gray-300 cursor-not-allowed' :
-          isRateLimited ? 'bg-gray-500 text-gray-400 cursor-not-allowed' :
-          'bg-gray-600 hover:bg-gray-500 text-white'
+          isRunning
+            ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+            : isRateLimited
+            ? 'bg-gray-500 text-gray-400 cursor-not-allowed'
+            : 'bg-gray-600 hover:bg-gray-500 text-white'
         }`}
       >
         {label}
       </button>
-      
-      {error && (
-        <span className="text-xs text-red-400">⚠️ {error}</span>
-      )}
+
+      {error && <span className="text-xs text-red-400">⚠️ {error}</span>}
     </div>
   )
 }
 
-const PAGE_SIZE = 20
+// ============================================================
+// 페이지네이션 (현재±2 + 처음/끝 + 이전/다음)
+// ============================================================
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number
+  totalPages: number
+  onChange: (p: number) => void
+}) {
+  if (totalPages <= 1) return null
 
-const SUBTYPE_OPTIONS = [
-  { value: '', label: '불량유형 전체' },
-  { value: 'printed_output', label: '인쇄 불량' },
-  { value: 'kiosk_screen', label: '키오스크 화면' },
+  // 현재 ±2 범위
+  const window = 2
+  const pages: (number | 'gap')[] = []
+
+  const start = Math.max(1, page - window)
+  const end = Math.min(totalPages, page + window)
+
+  // 처음 페이지
+  if (start > 1) {
+    pages.push(1)
+    if (start > 2) pages.push('gap')
+  }
+
+  for (let p = start; p <= end; p++) pages.push(p)
+
+  // 끝 페이지
+  if (end < totalPages) {
+    if (end < totalPages - 1) pages.push('gap')
+    pages.push(totalPages)
+  }
+
+  const btnBase =
+    'min-w-[36px] h-9 px-2 rounded text-sm flex items-center justify-center transition'
+
+  return (
+    <div className="flex justify-center items-center gap-1 mt-8 flex-wrap">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className={`${btnBase} bg-white border text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed`}
+        aria-label="이전 페이지"
+      >
+        ‹
+      </button>
+
+      {pages.map((p, i) =>
+        p === 'gap' ? (
+          <span key={`gap-${i}`} className="px-1 text-gray-400">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className={`${btnBase} ${
+              p === page
+                ? 'bg-gray-800 text-white'
+                : 'bg-white border hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className={`${btnBase} bg-white border text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed`}
+        aria-label="다음 페이지"
+      >
+        ›
+      </button>
+    </div>
+  )
+}
+
+// ============================================================
+// Gallery 본체
+// ============================================================
+const PAGE_SIZE = 30
+
+// 분포 결과 기반: printed_output 204 / kiosk_screen 124 / kiosk_body 96 / no_output 6 / other_defect 3
+const SUBTYPE_OPTIONS: { value: string; label: string; values: string[] }[] = [
+  { value: '', label: '불량유형 전체', values: [] },
+  { value: 'defect', label: '불량', values: ['printed_output'] },
+  { value: 'kiosk', label: '키오스크', values: ['kiosk_screen', 'kiosk_body'] },
+  { value: 'no_output', label: '출력 안됨', values: ['no_output'] },
+  { value: 'other_defect', label: '기타 불량', values: ['other_defect'] },
 ]
 
+// v2.1: medium 제거 (high/low 이진)
 const SEVERITY_OPTIONS = [
   { value: '', label: '심각도 전체' },
-  { value: 'high', label: '높음' },
-  { value: 'medium', label: '보통' },
+  { value: 'high', label: '시급' },
   { value: 'low', label: '낮음' },
 ]
+
+// 기본 필터: 최근 7일
+function getDefaultDateFrom(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 7)
+  return d.toISOString().slice(0, 10)
+}
 
 export default function Gallery() {
   const [data, setData] = useState<any[]>([])
@@ -191,8 +289,13 @@ export default function Gallery() {
   const [selected, setSelected] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  function getToday(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+// ... 컴포넌트 안에서:
+const [dateFrom, setDateFrom] = useState(getDefaultDateFrom())
+const [dateTo, setDateTo] = useState(getToday())
   const [subtype, setSubtype] = useState('')
   const [severity, setSeverity] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -213,7 +316,9 @@ export default function Gallery() {
     if (dateTo) query = query.lte('chat_created_at', dateTo + 'T23:59:59')
     if (severity) query = query.eq('ai_severity', severity)
     if (keyword) {
-      query = query.or(`store_name.ilike.%${keyword}%,ai_summary.ilike.%${keyword}%`)
+      query = query.or(
+        `store_name.ilike.%${keyword}%,ai_summary.ilike.%${keyword}%`
+      )
     }
 
     const { data: rows, count, error } = await query
@@ -221,10 +326,14 @@ export default function Gallery() {
     if (!error) {
       let filtered = rows ?? []
       if (subtype) {
-        filtered = filtered.filter((r: any) =>
-          r.images?.some((img: any) => img.vision_analysis?.subtype === subtype)
-        )
-      }
+  const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
+  const matchValues = opt?.values ?? [subtype]
+  filtered = filtered.filter((r: any) =>
+    r.images?.some((img: any) =>
+      matchValues.includes(img.vision_analysis?.subtype)
+    )
+  )
+}
       setData(filtered)
       setTotal(count ?? 0)
     }
@@ -234,6 +343,7 @@ export default function Gallery() {
   useEffect(() => {
     setPage(1)
     fetchData(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo, subtype, severity, keyword])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -248,55 +358,149 @@ export default function Gallery() {
     setKeyword(keywordInput.trim())
   }
 
+  function handlePageChange(p: number) {
+    setPage(p)
+    fetchData(p)
+    // 페이지 변경 시 상단으로 부드럽게
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function resetFilters() {
+  setDateFrom(getDefaultDateFrom())
+  setDateTo(getToday())   // 추가
+  setSubtype('')
+  setSeverity('')
+  setKeyword('')
+  setKeywordInput('')
+}
+
   return (
-    
     <div className="flex flex-col h-screen bg-gray-50">
       {/* 헤더 */}
-      {/* 타이틀 */}
-        <div className="bg-gray-800 px-6 py-3 flex justify-between items-center flex-wrap gap-2">
-  <h1 className="text-white font-semibold">📷 불량 사진 갤러리</h1>
-  <div className="flex items-center gap-3">
-    <SyncButton />
-    <LogoutButton />
-  </div>
-</div>
+      <div className="bg-gray-800 px-4 sm:px-6 py-3 flex justify-between items-center flex-wrap gap-2">
+        <h1 className="text-white font-semibold">📷 불량 사진 갤러리</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <SyncButton />
+          <LogoutButton />
+        </div>
+      </div>
 
-       {/* 검색 + 필터 한 줄 */}
-        <div className="px-6 py-3 bg-gray-50 flex flex-wrap gap-2 items-center">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border rounded px-3 py-1.5 text-sm bg-white" />
-          <span className="text-gray-400 text-sm">~</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border rounded px-3 py-1.5 text-sm bg-white" />
-          <select value={subtype} onChange={(e) => setSubtype(e.target.value)} className="border rounded px-3 py-1.5 text-sm bg-white">
-            {SUBTYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      {/* 검색 + 필터 */}
+      <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b">
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* 날짜 범위 */}
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border rounded px-3 py-1.5 text-sm bg-white"
+            />
+            <span className="text-gray-400 text-sm">~</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border rounded px-3 py-1.5 text-sm bg-white"
+            />
+          </div>
+
+          {/* 필터 select */}
+          <select
+            value={subtype}
+            onChange={(e) => setSubtype(e.target.value)}
+            className="border rounded px-3 py-1.5 text-sm bg-white"
+          >
+            {SUBTYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
-          <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="border rounded px-3 py-1.5 text-sm bg-white">
-            {SEVERITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <select
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value)}
+            className="border rounded px-3 py-1.5 text-sm bg-white"
+          >
+            {SEVERITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
-          <div className="w-px h-5 bg-gray-300" />
-          <form onSubmit={handleKeywordSearch} className="flex gap-1">
+
+          {/* 검색창 */}
+          <form
+            onSubmit={handleKeywordSearch}
+            className="flex gap-1 flex-1 sm:flex-none min-w-[200px]"
+          >
             <input
               type="text"
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
               placeholder="매장명 / AI요약 검색"
-              className="border rounded px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-gray-400 bg-white"
+              className="border rounded px-3 py-1.5 text-sm flex-1 sm:w-52 focus:outline-none focus:ring-2 focus:ring-gray-400 bg-white"
             />
-            <button type="submit" className="bg-gray-800 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition">검색</button>
+            <button
+              type="submit"
+              className="bg-gray-800 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition"
+            >
+              검색
+            </button>
             {keyword && (
-              <button type="button" onClick={() => { setKeyword(''); setKeywordInput('') }} className="border px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 bg-white transition">×</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyword('')
+                  setKeywordInput('')
+                }}
+                className="border px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 bg-white transition"
+                aria-label="검색어 지우기"
+              >
+                ×
+              </button>
             )}
           </form>
-          <span className="text-sm text-gray-500 ml-auto font-medium">총 <span className="text-gray-800 font-bold">{total}</span>건</span>
+
+          {/* 총 건수 + 초기화 */}
+          <div className="flex items-center gap-3 ml-auto">
+            <button
+              onClick={resetFilters}
+              className="text-xs text-gray-500 hover:text-gray-800 underline"
+            >
+              필터 초기화
+            </button>
+            <span className="text-sm text-gray-500 font-medium">
+              총 <span className="text-gray-800 font-bold">{total}</span>건
+            </span>
+          </div>
         </div>
+      </div>
 
       {/* 갤러리 */}
-      <div className="overflow-y-auto p-6 flex-1">
+      <div className="overflow-y-auto p-4 sm:p-6 flex-1">
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-gray-400">불러오는 중...</div>
+          <div className="flex items-center justify-center h-40 text-gray-400">
+            불러오는 중...
+          </div>
         ) : data.length === 0 ? (
-          <div className="flex items-center justify-center h-40 text-gray-400">검색 결과가 없습니다</div>
+          <div className="flex flex-col items-center justify-center h-60 text-gray-400 gap-3">
+            <p>검색 결과가 없습니다</p>
+            <button
+              onClick={resetFilters}
+              className="text-sm text-gray-600 hover:text-gray-800 underline"
+            >
+              필터 초기화
+            </button>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div
+  className="grid gap-4"
+  style={{
+    gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
+    gridAutoRows: 'auto',
+  }}
+>
             {data.map((item) => (
               <ImageCard
                 key={item.chat_id}
@@ -308,19 +512,11 @@ export default function Gallery() {
           </div>
         )}
 
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-1 mt-8">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                onClick={() => { setPage(p); fetchData(p) }}
-                className={`w-8 h-8 rounded text-sm ${p === page ? 'bg-gray-800 text-white' : 'bg-white border hover:bg-gray-100 text-gray-700'}`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onChange={handlePageChange}
+        />
       </div>
 
       {selected && <Modal item={selected} onClose={() => setSelected(null)} />}
