@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -11,6 +11,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+// ⭐ 신규: URL 해시에서 에러/토큰 감지
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash) return
+
+    const params = new URLSearchParams(hash.substring(1))
+    
+    // 1. 에러가 떨어진 경우
+    if (params.get('error')) {
+      const errorCode = params.get('error_code')
+      const errorDesc = params.get('error_description')
+      
+      if (errorCode === 'otp_expired') {
+        setError('초대 링크가 만료되었거나 이미 사용되었습니다. 관리자에게 새 초대를 요청해주세요.')
+      } else {
+        setError(decodeURIComponent(errorDesc ?? '인증 실패'))
+      }
+      
+      // URL 해시 정리
+      window.history.replaceState(null, '', '/login')
+      return
+    }
+
+    // 2. access_token이 떨어진 경우 (invitation 성공) → 비번 설정으로
+    if (params.get('access_token')) {
+      // Supabase가 자동으로 세션 처리하니까 잠깐 기다린 후 이동
+      setTimeout(() => {
+        router.push('/auth/update-password')
+      }, 300)
+    }
+  }, [router])
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
