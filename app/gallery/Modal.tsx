@@ -12,6 +12,7 @@ const SUBTYPE_LABEL: Record<string, string> = {
   kiosk_screen: '키오스크 화면',
   kiosk_body: '키오스크 본체',
   no_output: '출력 안됨',
+  no_output_only_receipt: '미출력 (영수증만)',
   other_defect: '기타 불량',
   original_photo: '원본 사진',
   출력물: '출력물',
@@ -139,6 +140,7 @@ export default function Modal({ item, onClose }: Props) {
     false
   const subtypeRaw = currentImage?.vision_analysis?.subtype ?? ''
   const subtype = SUBTYPE_LABEL[subtypeRaw] ?? subtypeRaw
+  const isNoOutputOnlyReceipt = subtypeRaw === 'no_output_only_receipt'
 
   // 환불 정보 (한 줄 요약)
   const refundFields: string[] = []
@@ -178,8 +180,8 @@ export default function Modal({ item, onClose }: Props) {
 
   return (
     <>
-      {/* 이미지 전체화면 */}
-      {imgZoom && (
+      {/* 이미지 전체화면 (placeholder는 zoom 안 함) */}
+      {imgZoom && !isNoOutputOnlyReceipt && (
         <div
           className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center cursor-zoom-out"
           onClick={() => setImgZoom(false)}
@@ -254,43 +256,62 @@ export default function Modal({ item, onClose }: Props) {
 
           {/* 사진 영역 */}
           <div className="bg-gray-100 px-6 py-4">
-            <div
-              className="relative cursor-zoom-in group"
-              onClick={() => setImgZoom(true)}
-            >
-              <img
-                src={currentImage?.storage_url}
-                className="w-full rounded-lg object-contain max-h-[60vh] md:max-h-96"
-                alt=""
-              />
-              {isHighSeverity && (
-                <div
-                  className="absolute top-2 left-2 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white shadow"
-                  title="시급"
-                />
-              )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition flex items-center justify-center">
-                <span className="opacity-0 group-hover:opacity-100 text-white text-sm bg-black/50 px-3 py-1 rounded-full transition">
-                  클릭하여 확대
-                </span>
+            {isNoOutputOnlyReceipt ? (
+              // 미출력 환불 + 영수증만 첨부 → placeholder
+              <div className="w-full bg-gray-50 rounded-lg flex flex-col items-center justify-center py-16 text-gray-500 border-2 border-dashed border-gray-300">
+                <div className="text-6xl mb-3">📭</div>
+                <div className="text-lg font-semibold text-gray-700">미출력 환불</div>
+                <div className="text-sm mt-1 text-gray-400">
+                  출력물 없이 영수증만 첨부된 케이스
+                </div>
+                {isHighSeverity && (
+                  <div
+                    className="absolute top-2 left-2 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white shadow"
+                    title="시급"
+                  />
+                )}
               </div>
-            </div>
-            {images.length > 1 && (
-              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-                {images.map((img, i) => (
+            ) : (
+              <>
+                <div
+                  className="relative cursor-zoom-in group"
+                  onClick={() => setImgZoom(true)}
+                >
                   <img
-                    key={i}
-                    src={img.storage_url}
-                    onClick={() => setCurrentIdx(i)}
-                    className={`w-14 h-14 object-cover rounded cursor-pointer shrink-0 border-2 transition ${
-                      i === currentIdx
-                        ? 'border-blue-400'
-                        : 'border-transparent hover:border-gray-300'
-                    }`}
+                    src={currentImage?.storage_url}
+                    className="w-full rounded-lg object-contain max-h-[60vh] md:max-h-96"
                     alt=""
                   />
-                ))}
-              </div>
+                  {isHighSeverity && (
+                    <div
+                      className="absolute top-2 left-2 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white shadow"
+                      title="시급"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 text-white text-sm bg-black/50 px-3 py-1 rounded-full transition">
+                      클릭하여 확대
+                    </span>
+                  </div>
+                </div>
+                {images.length > 1 && (
+                  <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+                    {images.map((img, i) => (
+                      <img
+                        key={i}
+                        src={img.storage_url}
+                        onClick={() => setCurrentIdx(i)}
+                        className={`w-14 h-14 object-cover rounded cursor-pointer shrink-0 border-2 transition ${
+                          i === currentIdx
+                            ? 'border-blue-400'
+                            : 'border-transparent hover:border-gray-300'
+                        }`}
+                        alt=""
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

@@ -259,12 +259,20 @@ function Pagination({
 // ============================================================
 const PAGE_SIZE = 30
 
-// 분포 결과 기반: printed_output 204 / kiosk_screen 124 / kiosk_body 96 / no_output 6 / other_defect 3
+// 묶음 8 v5 분류 결과 기반:
+// printed_output 527 / kiosk_screen 183 / original_photo 73 / no_output_only_receipt 56 /
+// kiosk_body 39 / no_output 18 / other_defect 11
 const SUBTYPE_OPTIONS: { value: string; label: string; values: string[] }[] = [
   { value: '', label: '불량유형 전체', values: [] },
   { value: 'defect', label: '불량', values: ['printed_output'] },
   { value: 'kiosk', label: '키오스크', values: ['kiosk_screen', 'kiosk_body'] },
   { value: 'no_output', label: '출력 안됨', values: ['no_output'] },
+  {
+    value: 'no_output_only_receipt',
+    label: '미출력 (영수증만)',
+    values: ['no_output_only_receipt'],
+  },
+  { value: 'original_photo', label: '원본 사진', values: ['original_photo'] },
   { value: 'other_defect', label: '기타 불량', values: ['other_defect'] },
 ]
 
@@ -290,12 +298,11 @@ export default function Gallery() {
   const [loading, setLoading] = useState(false)
 
   function getToday(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+    return new Date().toISOString().slice(0, 10)
+  }
 
-// ... 컴포넌트 안에서:
-const [dateFrom, setDateFrom] = useState(getDefaultDateFrom())
-const [dateTo, setDateTo] = useState(getToday())
+  const [dateFrom, setDateFrom] = useState(getDefaultDateFrom())
+  const [dateTo, setDateTo] = useState(getToday())
   const [subtype, setSubtype] = useState('')
   const [severity, setSeverity] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -326,14 +333,14 @@ const [dateTo, setDateTo] = useState(getToday())
     if (!error) {
       let filtered = rows ?? []
       if (subtype) {
-  const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
-  const matchValues = opt?.values ?? [subtype]
-  filtered = filtered.filter((r: any) =>
-    r.images?.some((img: any) =>
-      matchValues.includes(img.vision_analysis?.subtype)
-    )
-  )
-}
+        const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
+        const matchValues = opt?.values ?? [subtype]
+        filtered = filtered.filter((r: any) =>
+          r.images?.some((img: any) =>
+            matchValues.includes(img.vision_analysis?.subtype)
+          )
+        )
+      }
       setData(filtered)
       setTotal(count ?? 0)
     }
@@ -366,13 +373,13 @@ const [dateTo, setDateTo] = useState(getToday())
   }
 
   function resetFilters() {
-  setDateFrom(getDefaultDateFrom())
-  setDateTo(getToday())   // 추가
-  setSubtype('')
-  setSeverity('')
-  setKeyword('')
-  setKeywordInput('')
-}
+    setDateFrom(getDefaultDateFrom())
+    setDateTo(getToday())
+    setSubtype('')
+    setSeverity('')
+    setKeyword('')
+    setKeywordInput('')
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -495,12 +502,12 @@ const [dateTo, setDateTo] = useState(getToday())
           </div>
         ) : (
           <div
-  className="grid gap-4"
-  style={{
-    gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
-    gridAutoRows: 'auto',
-  }}
->
+            className="grid gap-4"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
+              gridAutoRows: 'auto',
+            }}
+          >
             {data.map((item) => (
               <ImageCard
                 key={item.chat_id}
