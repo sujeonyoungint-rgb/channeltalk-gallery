@@ -259,18 +259,18 @@ function Pagination({
 // ============================================================
 const PAGE_SIZE = 30
 
-// 묶음 8 v5 분류 결과 기반:
-// printed_output 527 / kiosk_screen 183 / original_photo 73 / no_output_only_receipt 56 /
-// kiosk_body 39 / no_output 18 / other_defect 11
+// 묶음 8 v7 분류 결과 기반:
+// printed_output / kiosk_screen / payment_proof_for_refund / original_photo /
+// kiosk_body / no_output / other_defect
 const SUBTYPE_OPTIONS: { value: string; label: string; values: string[] }[] = [
   { value: '', label: '불량유형 전체', values: [] },
   { value: 'defect', label: '불량', values: ['printed_output'] },
   { value: 'kiosk', label: '키오스크', values: ['kiosk_screen', 'kiosk_body'] },
   { value: 'no_output', label: '출력 안됨', values: ['no_output'] },
   {
-    value: 'no_output_only_receipt',
-    label: '미출력 (영수증만)',
-    values: ['no_output_only_receipt'],
+    value: 'payment_proof_for_refund',
+    label: '결제 증빙 (영수증)',
+    values: ['payment_proof_for_refund'],
   },
   { value: 'original_photo', label: '원본 사진', values: ['original_photo'] },
   { value: 'other_defect', label: '기타 불량', values: ['other_defect'] },
@@ -333,13 +333,19 @@ export default function Gallery() {
     if (!error) {
       let filtered = rows ?? []
       if (subtype) {
-        const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
-        const matchValues = opt?.values ?? [subtype]
-        filtered = filtered.filter((r: any) =>
-          r.images?.some((img: any) =>
-            matchValues.includes(img.vision_analysis?.subtype)
+        // payment_proof_for_refund: view의 has_payment_proof 컬럼으로 필터
+        if (subtype === 'payment_proof_for_refund') {
+          filtered = filtered.filter((r: any) => r.has_payment_proof === true)
+        } else {
+          // 일반 subtype: images 배열에서 매칭
+          const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
+          const matchValues = opt?.values ?? [subtype]
+          filtered = filtered.filter((r: any) =>
+            r.images?.some((img: any) =>
+              matchValues.includes(img.vision_analysis?.subtype)
+            )
           )
-        )
+        }
       }
       setData(filtered)
       setTotal(count ?? 0)

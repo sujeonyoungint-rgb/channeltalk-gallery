@@ -6,13 +6,13 @@ interface Props {
   onClick: () => void
 }
 
-// subtype 한글 라벨 매핑 (영문/한글 혼재 대응)
+// subtype 한글 라벨 매핑 (v7 - payment_proof_for_refund 추가)
 const SUBTYPE_LABEL: Record<string, string> = {
   printed_output: '출력물',
   kiosk_screen: '키오스크 화면',
   kiosk_body: '키오스크 본체',
   no_output: '출력 안됨',
-  no_output_only_receipt: '미출력 (영수증만)',
+  payment_proof_for_refund: '결제 증빙 (영수증)',
   other_defect: '기타 불량',
   original_photo: '원본 사진',
   // 한글로 이미 저장된 케이스도 자기 자신으로
@@ -29,7 +29,10 @@ export default function ImageCard({ item, storeCount, onClick }: Props) {
   const firstImage = images[0]
   const rawSubtype: string = firstImage?.vision_analysis?.subtype ?? ''
   const subtype = SUBTYPE_LABEL[rawSubtype] ?? rawSubtype
-  const isNoOutputOnlyReceipt = rawSubtype === 'no_output_only_receipt'
+  // images가 비어있으면 placeholder (view에서 영수증/사용법 사진 제외 후 빈 케이스)
+  const hasNoDisplayableImage = images.length === 0
+  // 영수증만 있는 chat인지 (view의 has_payment_proof 컬럼)
+  const isPaymentProofChat = item.has_payment_proof === true
 
   // v2.1 별도 컬럼 우선, 없으면 JSONB fallback
   const severity: string =
@@ -63,21 +66,19 @@ export default function ImageCard({ item, storeCount, onClick }: Props) {
     >
       {/* 썸네일 그리드 — 장수별 레이아웃 */}
       <div className="relative aspect-square bg-gray-100 shrink-0 rounded-t-lg overflow-hidden">
-        {isNoOutputOnlyReceipt ? (
-          // 미출력 환불 + 영수증만 첨부 → placeholder
+        {hasNoDisplayableImage ? (
+          // 표시할 사진 없음 (영수증만/사용법만 있는 chat) → placeholder
           <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 bg-gray-50">
             <div className="text-5xl mb-2">📭</div>
-            <div className="text-sm font-semibold text-gray-700">미출력 환불</div>
-            <div className="text-xs mt-1 text-gray-400">사진 없음 (영수증만)</div>
+            <div className="text-sm font-semibold text-gray-700">
+              {isPaymentProofChat ? '미출력 환불' : '노출 사진 없음'}
+            </div>
+            <div className="text-xs mt-1 text-gray-400">
+              {isPaymentProofChat ? '영수증만 첨부됨' : '영수증/사용법 사진만 있음'}
+            </div>
           </div>
         ) : (
           <>
-            {images.length === 0 && (
-              <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                사진 없음
-              </div>
-            )}
-
             {images.length === 1 && (
               <img
                 src={images[0].storage_url}
@@ -131,9 +132,16 @@ export default function ImageCard({ item, storeCount, onClick }: Props) {
         )}
 
         {/* 이미지 개수 (placeholder가 아닐 때만) */}
-        {!isNoOutputOnlyReceipt && images.length > 1 && (
+        {!hasNoDisplayableImage && images.length > 1 && (
           <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded z-10">
             {images.length}장
+          </div>
+        )}
+
+        {/* 영수증 있음 표시 (사진과 영수증 둘 다 있는 chat) */}
+        {!hasNoDisplayableImage && isPaymentProofChat && (
+          <div className="absolute bottom-2 right-2 bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs px-1.5 py-0.5 rounded z-10">
+            💳 영수증 첨부
           </div>
         )}
       </div>
@@ -157,9 +165,11 @@ export default function ImageCard({ item, storeCount, onClick }: Props) {
           )}
         </div>
 
-        {/* description (없으면 자리만 차지) */}
+        {/* description (placeholder가 아닐 때 첫 사진 description) */}
         <p className="text-xs text-gray-500 min-h-[16px] overflow-hidden whitespace-nowrap text-ellipsis">
-          {firstImage?.vision_analysis?.description ?? ''}
+          {hasNoDisplayableImage
+            ? '결제 증빙용 영수증만 첨부된 환불 케이스'
+            : firstImage?.vision_analysis?.description ?? ''}
         </p>
 
         {/* 메타 배지 한 줄: 날짜 · subtype · defect_type · 팝업 */}
@@ -169,12 +179,12 @@ export default function ImageCard({ item, storeCount, onClick }: Props) {
               {date}
             </span>
           )}
-          {subtype && (
+          {subtype && !hasNoDisplayableImage && (
             <span className="text-xs bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">
               {subtype}
             </span>
           )}
-          {defectType && !subtype && (
+          {defectType && !subtype && !hasNoDisplayableImage && (
             <span className="text-xs bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">
               {defectType}
             </span>

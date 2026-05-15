@@ -6,13 +6,13 @@ interface Props {
   onClose: () => void
 }
 
-// subtype 한글 라벨 매핑 (ImageCard와 동일)
+// subtype 한글 라벨 매핑 (v7 - payment_proof_for_refund)
 const SUBTYPE_LABEL: Record<string, string> = {
   printed_output: '출력물',
   kiosk_screen: '키오스크 화면',
   kiosk_body: '키오스크 본체',
   no_output: '출력 안됨',
-  no_output_only_receipt: '미출력 (영수증만)',
+  payment_proof_for_refund: '결제 증빙 (영수증)',
   other_defect: '기타 불량',
   original_photo: '원본 사진',
   출력물: '출력물',
@@ -140,7 +140,9 @@ export default function Modal({ item, onClose }: Props) {
     false
   const subtypeRaw = currentImage?.vision_analysis?.subtype ?? ''
   const subtype = SUBTYPE_LABEL[subtypeRaw] ?? subtypeRaw
-  const isNoOutputOnlyReceipt = subtypeRaw === 'no_output_only_receipt'
+  // images 비어있으면 placeholder (영수증만 있는 chat)
+  const hasNoDisplayableImage = images.length === 0
+  const isPaymentProofChat = item.has_payment_proof === true
 
   // 환불 정보 (한 줄 요약)
   const refundFields: string[] = []
@@ -181,7 +183,7 @@ export default function Modal({ item, onClose }: Props) {
   return (
     <>
       {/* 이미지 전체화면 (placeholder는 zoom 안 함) */}
-      {imgZoom && !isNoOutputOnlyReceipt && (
+      {imgZoom && !hasNoDisplayableImage && (
         <div
           className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center cursor-zoom-out"
           onClick={() => setImgZoom(false)}
@@ -256,13 +258,17 @@ export default function Modal({ item, onClose }: Props) {
 
           {/* 사진 영역 */}
           <div className="bg-gray-100 px-6 py-4">
-            {isNoOutputOnlyReceipt ? (
-              // 미출력 환불 + 영수증만 첨부 → placeholder
-              <div className="w-full bg-gray-50 rounded-lg flex flex-col items-center justify-center py-16 text-gray-500 border-2 border-dashed border-gray-300">
+            {hasNoDisplayableImage ? (
+              // 표시할 사진 없음 (영수증만 있는 chat) → placeholder
+              <div className="w-full bg-gray-50 rounded-lg flex flex-col items-center justify-center py-16 text-gray-500 border-2 border-dashed border-gray-300 relative">
                 <div className="text-6xl mb-3">📭</div>
-                <div className="text-lg font-semibold text-gray-700">미출력 환불</div>
+                <div className="text-lg font-semibold text-gray-700">
+                  {isPaymentProofChat ? '미출력 환불' : '노출 사진 없음'}
+                </div>
                 <div className="text-sm mt-1 text-gray-400">
-                  출력물 없이 영수증만 첨부된 케이스
+                  {isPaymentProofChat
+                    ? '결제 증빙용 영수증만 첨부됨'
+                    : '영수증/사용법 사진만 있음'}
                 </div>
                 {isHighSeverity && (
                   <div
