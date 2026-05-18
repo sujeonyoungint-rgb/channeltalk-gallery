@@ -306,6 +306,13 @@ function getDefaultDateFrom(): string {
   return d.toISOString().slice(0, 10)
 }
 
+// 날짜 문자열에 일수 더하기 (YYYY-MM-DD 형식 유지)
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function Gallery() {
   const [data, setData] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -393,6 +400,20 @@ export default function Gallery() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function shiftWeek(direction: 'prev' | 'next') {
+    const delta = direction === 'prev' ? -7 : 7
+    const newFrom = addDays(dateFrom, delta)
+    const newTo = addDays(dateTo, delta)
+
+    // 미래로 못 가게 (오늘 초과 시 차단)
+    if (newTo > getToday()) return
+
+    setDateFrom(newFrom)
+    setDateTo(newTo)
+  }
+
+  const canGoNext = dateTo < getToday()
+
   function resetFilters() {
     setDateFrom(getDefaultDateFrom())
     setDateTo(getToday())
@@ -417,8 +438,16 @@ export default function Gallery() {
       {/* 검색 + 필터 */}
       <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b">
         <div className="flex flex-wrap gap-2 items-center">
-          {/* 날짜 범위 */}
+          {/* 날짜 범위 + 1주 단위 이동 */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => shiftWeek('prev')}
+              className="border rounded px-2 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-100 transition"
+              title="1주 전 보기"
+              aria-label="1주 전"
+            >
+              ◀ 1주
+            </button>
             <input
               type="date"
               value={dateFrom}
@@ -432,6 +461,19 @@ export default function Gallery() {
               onChange={(e) => setDateTo(e.target.value)}
               className="border rounded px-3 py-1.5 text-sm bg-white"
             />
+            <button
+              onClick={() => shiftWeek('next')}
+              disabled={!canGoNext}
+              className={`border rounded px-2 py-1.5 text-sm transition ${
+                canGoNext
+                  ? 'bg-white text-gray-600 hover:bg-gray-100'
+                  : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+              }`}
+              title={canGoNext ? '1주 후 보기' : '더 이상 이동할 수 없습니다'}
+              aria-label="1주 후"
+            >
+              1주 ▶
+            </button>
           </div>
 
           {/* 필터 select */}
