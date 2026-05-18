@@ -27,18 +27,17 @@ function LogoutButton() {
 }
 
 // ============================================================
-// 동기화 버튼 (기존 그대로)
+// 동기화 버튼
 // ============================================================
 function SyncButton() {
   const [syncInfo, setSyncInfo] = useState<{ status: string; step?: string } | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
-  const [lastMessage, setLastMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [justClickedAt, setJustClickedAt] = useState<number | null>(null)
 
   const API_URL = process.env.NEXT_PUBLIC_SYNC_API_URL || 'http://localhost:8000'
 
-  // 쿨다운: 10분 (Vision 30장 한도 시 남은 사진 빨리 처리하도록)
+  // 쿨다운: 10분
   const COOLDOWN_MINUTES = 10
 
   const STEP_LABEL: Record<string, string> = {
@@ -51,7 +50,7 @@ function SyncButton() {
   async function loadLastSync() {
     const { data } = await supabase
       .from('sync_log')
-      .select('finished_at, message')
+      .select('finished_at')
       .eq('status', 'success')
       .eq('step', 'done')
       .not('finished_at', 'is', null)
@@ -61,7 +60,6 @@ function SyncButton() {
 
     if (data?.finished_at) {
       setLastSyncedAt(data.finished_at)
-      setLastMessage(data.message ?? null)
     }
   }
 
@@ -108,13 +106,6 @@ function SyncButton() {
     if (hours < 24) return `${hours}시간 전`
     return `${Math.floor(hours / 24)}일 전`
   }
-
-  // message에서 남은 사진 수 파싱
-  const remainingImages: number = (() => {
-    if (!lastMessage) return 0
-    const m = lastMessage.match(/vision_remaining=(\d+)/)
-    return m ? parseInt(m[1], 10) : 0
-  })()
 
   const minsSinceLastSync = lastSyncedAt
     ? Math.floor((Date.now() - new Date(lastSyncedAt).getTime()) / 1000 / 60)
@@ -169,14 +160,7 @@ function SyncButton() {
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* 남은 사진 안내 (한도 적용 시) */}
-      {remainingImages > 0 && !isRunning && (
-        <span className="text-xs text-yellow-300">
-          📷 남은 사진 {remainingImages}장 — {isRateLimited ? `${remainingMins}분 후` : '지금'} 동기화 가능
-        </span>
-      )}
-
-      {lastSyncedAt && !isRunning && remainingImages === 0 && (
+      {lastSyncedAt && !isRunning && (
         <span className="text-xs text-gray-300">
           마지막: {formatRelative(lastSyncedAt)}
           {isRateLimited && (
@@ -193,8 +177,6 @@ function SyncButton() {
             ? '동기화 진행 중'
             : isRateLimited
             ? `${remainingMins}분 후 다시 시도 가능 (${COOLDOWN_MINUTES}분 제한)`
-            : remainingImages > 0
-            ? `남은 사진 ${remainingImages}장 처리`
             : '데이터 동기화'
         }
         className={`text-sm px-3 py-1.5 rounded transition flex items-center gap-1.5 ${
