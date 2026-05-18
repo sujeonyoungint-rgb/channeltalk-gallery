@@ -280,19 +280,13 @@ function Pagination({
 // ============================================================
 const PAGE_SIZE = 30
 
-// 묶음 8 v7 분류 결과 기반:
-// printed_output / kiosk_screen / payment_proof_for_refund / original_photo /
-// kiosk_body / no_output / other_defect
+// 묶음 8 v7 분류 결과 기반 (v8: 결제 증빙 옵션 제거 - view에서 자동 처리됨):
+// printed_output / kiosk_screen / original_photo / kiosk_body / no_output / other_defect
 const SUBTYPE_OPTIONS: { value: string; label: string; values: string[] }[] = [
   { value: '', label: '불량유형 전체', values: [] },
   { value: 'defect', label: '불량', values: ['printed_output'] },
   { value: 'kiosk', label: '키오스크', values: ['kiosk_screen', 'kiosk_body'] },
   { value: 'no_output', label: '출력 안됨', values: ['no_output'] },
-  {
-    value: 'payment_proof_for_refund',
-    label: '결제 증빙 (영수증)',
-    values: ['payment_proof_for_refund'],
-  },
   { value: 'original_photo', label: '원본 사진', values: ['original_photo'] },
   { value: 'other_defect', label: '기타 불량', values: ['other_defect'] },
 ]
@@ -328,6 +322,7 @@ export default function Gallery() {
   const [severity, setSeverity] = useState('')
   const [keyword, setKeyword] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
+  const [photosOnly, setPhotosOnly] = useState(false)
 
   async function fetchData(p = 1) {
     setLoading(true)
@@ -349,26 +344,24 @@ export default function Gallery() {
       )
     }
 
+    // v8: subtype 서버 필터링 (배열 교집합)
+    if (subtype) {
+      const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
+      const matchValues = opt?.values ?? [subtype]
+      if (matchValues.length > 0) {
+        query = query.overlaps('subtypes', matchValues)
+      }
+    }
+
+    // v8: "사진만 보기" 토글
+    if (photosOnly) {
+      query = query.gt('displayable_image_count', 0)
+    }
+
     const { data: rows, count, error } = await query
 
     if (!error) {
-      let filtered = rows ?? []
-      if (subtype) {
-        // payment_proof_for_refund: view의 has_payment_proof 컬럼으로 필터
-        if (subtype === 'payment_proof_for_refund') {
-          filtered = filtered.filter((r: any) => r.has_payment_proof === true)
-        } else {
-          // 일반 subtype: images 배열에서 매칭
-          const opt = SUBTYPE_OPTIONS.find((o) => o.value === subtype)
-          const matchValues = opt?.values ?? [subtype]
-          filtered = filtered.filter((r: any) =>
-            r.images?.some((img: any) =>
-              matchValues.includes(img.vision_analysis?.subtype)
-            )
-          )
-        }
-      }
-      setData(filtered)
+      setData(rows ?? [])
       setTotal(count ?? 0)
     }
     setLoading(false)
@@ -378,7 +371,7 @@ export default function Gallery() {
     setPage(1)
     fetchData(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo, subtype, severity, keyword])
+  }, [dateFrom, dateTo, subtype, severity, keyword, photosOnly])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
@@ -406,6 +399,7 @@ export default function Gallery() {
     setSeverity('')
     setKeyword('')
     setKeywordInput('')
+    setPhotosOnly(false)
   }
 
   return (
@@ -496,8 +490,19 @@ export default function Gallery() {
             )}
           </form>
 
-          {/* 총 건수 + 초기화 */}
+          {/* 사진만 보기 토글 + 총 건수 + 초기화 */}
           <div className="flex items-center gap-3 ml-auto">
+            <button
+              onClick={() => setPhotosOnly((v) => !v)}
+              className={`text-xs px-3 py-1.5 rounded border transition ${
+                photosOnly
+                  ? 'bg-yellow-100 border-yellow-400 text-yellow-800 font-semibold'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+              title="영수증만 있는 chat은 숨기고 실제 사진이 있는 chat만 표시"
+            >
+              📷 사진만 보기 {photosOnly ? 'ON' : 'OFF'}
+            </button>
             <button
               onClick={resetFilters}
               className="text-xs text-gray-500 hover:text-gray-800 underline"
