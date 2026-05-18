@@ -34,6 +34,7 @@ function SyncButton() {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
   const [lastMessage, setLastMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [justClickedAt, setJustClickedAt] = useState<number | null>(null)
 
   const API_URL = process.env.NEXT_PUBLIC_SYNC_API_URL || 'http://localhost:8000'
 
@@ -75,6 +76,12 @@ function SyncButton() {
       return { status: 'idle' }
     }
   }
+
+  useEffect(() => {
+    if (!error) return
+    const timer = setTimeout(() => setError(null), 3000)
+    return () => clearTimeout(timer)
+  }, [error])
 
   useEffect(() => {
     loadLastSync()
@@ -119,8 +126,19 @@ function SyncButton() {
   const canSync = !isRunning && !isRateLimited
 
   async function handleSync() {
+    // 60초 안에 재클릭 차단 (race condition 방지)
+    const LOCK_SECONDS = 60
+    if (justClickedAt !== null) {
+      const elapsed = (Date.now() - justClickedAt) / 1000
+      if (elapsed < LOCK_SECONDS) {
+        setError('이미 진행 중입니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
+    }
+
     if (!canSync) return
     setError(null)
+    setJustClickedAt(Date.now())
 
     try {
       const res = await fetch(`${API_URL}/sync/full`, { method: 'POST' })
@@ -140,6 +158,7 @@ function SyncButton() {
       }, 2000)
     } catch (e: any) {
       setError(e.message)
+      setJustClickedAt(null)  // 에러 시 잠금 해제
     }
   }
 
