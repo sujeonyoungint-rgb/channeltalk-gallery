@@ -463,11 +463,11 @@ export default function Gallery() {
             </div>
           </div>
 
-          {/* 날짜 범위 + 1주 단위 이동 — 모바일: 한 줄 전체 차지 */}
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-nowrap">
+          {/* 날짜 범위 + 1주 단위 이동 — 모바일: 한 줄 전체 차지, input이 남는 공간 차지 */}
+          <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto sm:flex-nowrap">
             <button
               onClick={() => shiftWeek('prev')}
-              className="border rounded px-2 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-100 transition"
+              className="border rounded px-2 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-100 transition shrink-0"
               title="1주 전 보기"
               aria-label="1주 전"
             >
@@ -477,19 +477,19 @@ export default function Gallery() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[150px] sm:w-auto"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white flex-1 min-w-0 sm:flex-none sm:w-auto"
             />
-            <span className="text-gray-400 text-sm">~</span>
+            <span className="text-gray-400 text-sm shrink-0">~</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[150px] sm:w-auto"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white flex-1 min-w-0 sm:flex-none sm:w-auto"
             />
             <button
               onClick={() => shiftWeek('next')}
               disabled={!canGoNext}
-              className={`border rounded px-2 py-1.5 text-sm transition ${
+              className={`border rounded px-2 py-1.5 text-sm transition shrink-0 ${
                 canGoNext
                   ? 'bg-white text-gray-600 hover:bg-gray-100'
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
