@@ -161,7 +161,7 @@ function SyncButton() {
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {lastSyncedAt && !isRunning && (
-        <span className="text-xs text-gray-300">
+        <span className="hidden sm:inline text-xs text-gray-300">
           마지막: {formatRelative(lastSyncedAt)}
           {isRateLimited && (
             <span className="text-gray-400 ml-1.5">({remainingMins}분 후)</span>
@@ -438,8 +438,33 @@ export default function Gallery() {
       {/* 검색 + 필터 */}
       <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b">
         <div className="flex flex-wrap gap-2 items-center">
+          {/* 모바일 전용: 사진만보기 + 초기화/건수 (최상단으로) */}
+          <div className="flex sm:hidden items-center gap-3 w-full">
+            <button
+              onClick={() => setPhotosOnly((v) => !v)}
+              className={`text-xs px-3 py-1.5 rounded border transition ${
+                photosOnly
+                  ? 'bg-yellow-100 border-yellow-400 text-yellow-800 font-semibold'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              📷 사진만 보기 {photosOnly ? 'ON' : 'OFF'}
+            </button>
+            <div className="flex items-center gap-3 ml-auto">
+              <button
+                onClick={resetFilters}
+                className="text-xs text-gray-500 hover:text-gray-800 underline"
+              >
+                필터 초기화
+              </button>
+              <span className="text-sm text-gray-500 font-medium">
+                총 <span className="text-gray-800 font-bold">{total}</span>건
+              </span>
+            </div>
+          </div>
+
           {/* 날짜 범위 + 1주 단위 이동 — 모바일: 한 줄 전체 차지 */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-nowrap">
             <button
               onClick={() => shiftWeek('prev')}
               className="border rounded px-2 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-100 transition"
@@ -452,14 +477,14 @@ export default function Gallery() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[130px] sm:w-auto"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[150px] sm:w-auto"
             />
             <span className="text-gray-400 text-sm">~</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[130px] sm:w-auto"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[150px] sm:w-auto"
             />
             <button
               onClick={() => shiftWeek('next')}
@@ -533,8 +558,8 @@ export default function Gallery() {
             )}
           </form>
 
-          {/* 사진만 보기 (좌) + 초기화·건수 (우) — 모바일: 첫 줄로 올림 / PC: 우측 끝 */}
-          <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto order-first sm:order-none">
+          {/* 사진만 보기 (좌) + 초기화·건수 (우) — PC 전용 (모바일은 상단에 별도 렌더링) */}
+          <div className="hidden sm:flex items-center gap-3 sm:ml-auto">
             <button
               onClick={() => setPhotosOnly((v) => !v)}
               className={`text-xs px-3 py-1.5 rounded border transition ${
@@ -546,17 +571,15 @@ export default function Gallery() {
             >
               📷 사진만 보기 {photosOnly ? 'ON' : 'OFF'}
             </button>
-            <div className="flex items-center gap-3 ml-auto sm:ml-0">
-              <button
-                onClick={resetFilters}
-                className="text-xs text-gray-500 hover:text-gray-800 underline"
-              >
-                필터 초기화
-              </button>
-              <span className="text-sm text-gray-500 font-medium">
-                총 <span className="text-gray-800 font-bold">{total}</span>건
-              </span>
-            </div>
+            <button
+              onClick={resetFilters}
+              className="text-xs text-gray-500 hover:text-gray-800 underline"
+            >
+              필터 초기화
+            </button>
+            <span className="text-sm text-gray-500 font-medium">
+              총 <span className="text-gray-800 font-bold">{total}</span>건
+            </span>
           </div>
         </div>
       </div>
