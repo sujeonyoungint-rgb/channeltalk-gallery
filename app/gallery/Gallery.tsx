@@ -426,8 +426,8 @@ export default function Gallery() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* 헤더 — 모바일: 세로 스택 / PC: 기존 가로 배치 */}
-      <div className="bg-gray-800 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center gap-2">
+      {/* 헤더 — 모바일/PC 모두 한 줄 가로 배치 */}
+      <div className="bg-gray-800 px-4 sm:px-6 py-3 flex flex-row flex-wrap justify-between items-center gap-2">
         <h1 className="text-white font-semibold">📷 불량 사진 갤러리</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <SyncButton />
@@ -452,14 +452,14 @@ export default function Gallery() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[110px] sm:w-auto"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[130px] sm:w-auto"
             />
             <span className="text-gray-400 text-sm">~</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[110px] sm:w-auto"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[130px] sm:w-auto"
             />
             <button
               onClick={() => shiftWeek('next')}
@@ -533,8 +533,8 @@ export default function Gallery() {
             )}
           </form>
 
-          {/* 사진만 보기 토글 + 총 건수 + 초기화 — 모바일: 한 줄 우측 정렬 / PC: 우측 끝 */}
-          <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto justify-end sm:justify-start">
+          {/* 사진만 보기 (좌) + 초기화·건수 (우) — 모바일: 첫 줄로 올림 / PC: 우측 끝 */}
+          <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto order-first sm:order-none">
             <button
               onClick={() => setPhotosOnly((v) => !v)}
               className={`text-xs px-3 py-1.5 rounded border transition ${
@@ -546,15 +546,17 @@ export default function Gallery() {
             >
               📷 사진만 보기 {photosOnly ? 'ON' : 'OFF'}
             </button>
-            <button
-              onClick={resetFilters}
-              className="text-xs text-gray-500 hover:text-gray-800 underline"
-            >
-              필터 초기화
-            </button>
-            <span className="text-sm text-gray-500 font-medium">
-              총 <span className="text-gray-800 font-bold">{total}</span>건
-            </span>
+            <div className="flex items-center gap-3 ml-auto sm:ml-0">
+              <button
+                onClick={resetFilters}
+                className="text-xs text-gray-500 hover:text-gray-800 underline"
+              >
+                필터 초기화
+              </button>
+              <span className="text-sm text-gray-500 font-medium">
+                총 <span className="text-gray-800 font-bold">{total}</span>건
+              </span>
+            </div>
           </div>
         </div>
       </div>
