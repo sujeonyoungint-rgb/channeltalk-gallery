@@ -452,14 +452,14 @@ export default function Gallery() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="border rounded px-3 py-1.5 text-sm bg-white"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[110px] sm:w-auto"
             />
             <span className="text-gray-400 text-sm">~</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="border rounded px-3 py-1.5 text-sm bg-white"
+              className="border rounded px-2 sm:px-3 py-1.5 text-sm bg-white w-[110px] sm:w-auto"
             />
             <button
               onClick={() => shiftWeek('next')}
@@ -533,8 +533,8 @@ export default function Gallery() {
             )}
           </form>
 
-          {/* 사진만 보기 토글 + 총 건수 + 초기화 — 모바일: 한 줄 전체 / PC: 우측 정렬 */}
-          <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
+          {/* 사진만 보기 토글 + 총 건수 + 초기화 — 모바일: 한 줄 우측 정렬 / PC: 우측 끝 */}
+          <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto justify-end sm:justify-start">
             <button
               onClick={() => setPhotosOnly((v) => !v)}
               className={`text-xs px-3 py-1.5 rounded border transition ${
