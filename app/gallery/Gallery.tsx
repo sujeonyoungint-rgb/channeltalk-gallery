@@ -471,7 +471,7 @@ export default function Gallery() {
               title="1주 전 보기"
               aria-label="1주 전"
             >
-              ◀ 1주
+              ◀<span className="hidden sm:inline"> 1주</span>
             </button>
             <input
               type="date"
@@ -497,7 +497,7 @@ export default function Gallery() {
               title={canGoNext ? '1주 후 보기' : '더 이상 이동할 수 없습니다'}
               aria-label="1주 후"
             >
-              1주 ▶
+              <span className="hidden sm:inline">1주 </span>▶
             </button>
           </div>
 
