@@ -426,8 +426,8 @@ export default function Gallery() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* 헤더 */}
-      <div className="bg-gray-800 px-4 sm:px-6 py-3 flex justify-between items-center flex-wrap gap-2">
+      {/* 헤더 — 모바일: 세로 스택 / PC: 기존 가로 배치 */}
+      <div className="bg-gray-800 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center gap-2">
         <h1 className="text-white font-semibold">📷 불량 사진 갤러리</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <SyncButton />
@@ -438,8 +438,8 @@ export default function Gallery() {
       {/* 검색 + 필터 */}
       <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b">
         <div className="flex flex-wrap gap-2 items-center">
-          {/* 날짜 범위 + 1주 단위 이동 */}
-          <div className="flex items-center gap-2">
+          {/* 날짜 범위 + 1주 단위 이동 — 모바일: 한 줄 전체 차지 */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => shiftWeek('prev')}
               className="border rounded px-2 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-100 transition"
@@ -533,8 +533,8 @@ export default function Gallery() {
             )}
           </form>
 
-          {/* 사진만 보기 토글 + 총 건수 + 초기화 */}
-          <div className="flex items-center gap-3 ml-auto">
+          {/* 사진만 보기 토글 + 총 건수 + 초기화 — 모바일: 한 줄 전체 / PC: 우측 정렬 */}
+          <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
             <button
               onClick={() => setPhotosOnly((v) => !v)}
               className={`text-xs px-3 py-1.5 rounded border transition ${
@@ -576,10 +576,10 @@ export default function Gallery() {
             </button>
           </div>
         ) : (
+          // 모바일: 강제 2열 / PC: 기존 auto-fill 450px 그리드
           <div
-            className="grid gap-4"
+            className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(450px,1fr))]"
             style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
               gridAutoRows: 'auto',
             }}
           >
